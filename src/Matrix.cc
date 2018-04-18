@@ -1459,6 +1459,7 @@ NAN_METHOD(Matrix::AddWeighted) {
   float alpha = info[1]->NumberValue();
   float beta = info[3]->NumberValue();
   int gamma = 0;
+  if (info.Length() > 4) gamma = info[4]->IntegerValue();
 
   try {
     cv::addWeighted(src1->mat, alpha, src2->mat, beta, gamma, self->mat);
