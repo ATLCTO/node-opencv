@@ -126,6 +126,7 @@ void Matrix::Init(Local<Object> target) {
   Nan::SetPrototypeMethod(ctor, "mul", Mul);
   Nan::SetPrototypeMethod(ctor, "div", Div);
   Nan::SetPrototypeMethod(ctor, "pow", Pow);
+	Nan::SetPrototypeMethod(ctor, "dither", Dither);
 
   target->Set(Nan::New("Matrix").ToLocalChecked(), ctor->GetFunction());
 };
@@ -3186,5 +3187,73 @@ NAN_METHOD(Matrix::Pow) {
   cv::pow(self->mat, power, self->mat);
 
   return;
+}
+
+uint8_t saturated_add(uint8_t val1, int8_t val2)
+{
+	int16_t val1_int = val1;
+	int16_t val2_int = val2;
+	int16_t tmp = val1_int + val2_int;
+
+	if (tmp > 255)
+	{
+		return 255;
+	}
+	else if (tmp < 0)
+	{
+		return 0;
+	}
+	else
+	{
+		return tmp;
+	}
+}
+
+NAN_METHOD(Matrix::Dither) {
+	SETUP_FUNCTION(Matrix)
+
+	if (self->mat.channels() != 1) {
+		cvtColor(self->mat, self->mat, CV_BGR2GRAY);
+	}
+
+	/* Get the size info */
+	int imgWidth = self->mat.cols;
+	int imgHeight = self->mat.rows;
+
+	/* Run the 'Floyd-Steinberg' dithering algorithm ... */
+	int err;
+	int8_t a, b, c, d;
+
+	for (int i = 0; i < imgHeight; i++)
+	{
+		for (int j = 0; j < imgWidth; j++)
+		{
+			if (self->mat.at<uint8_t>(i, j) > 127)
+			{
+				err = self->mat.at<uint8_t>(i, j) - 255;
+				self->mat.at<uint8_t>(i, j) = 255;
+			}
+			else
+			{
+				err = self->mat.at<uint8_t>(i, j) - 0;
+				self->mat.at<uint8_t>(i, j) = 0;
+			}
+
+			a = (err * 7) / 16;
+			b = (err * 1) / 16;
+			c = (err * 5) / 16;
+			d = (err * 3) / 16;
+
+			if ((i != (imgHeight - 1)) && (j != 0) && (j != (imgWidth - 1)))
+			{
+				self->mat.at<uint8_t>(i + 0, j + 1) = saturated_add(self->mat.at<uint8_t>(i + 0, j + 1), a);
+				self->mat.at<uint8_t>(i + 1, j + 1) = saturated_add(self->mat.at<uint8_t>(i + 1, j + 1), b);
+				self->mat.at<uint8_t>(i + 1, j + 0) = saturated_add(self->mat.at<uint8_t>(i + 1, j + 0), c);
+				self->mat.at<uint8_t>(i + 1, j - 1) = saturated_add(self->mat.at<uint8_t>(i + 1, j - 1), d);
+			}
+		}
+	}
+
+	return;
 }
 

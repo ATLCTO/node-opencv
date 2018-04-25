@@ -152,6 +152,8 @@ public:
   JSFUNC(Div)
   JSFUNC(Pow)
 
+  JSFUNC(Dither)
+
   /*
    static Handle<Value> Val(const Arguments& info);
    static Handle<Value> RowRange(const Arguments& info);
