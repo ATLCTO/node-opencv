@@ -112,6 +112,7 @@ void Calib3D::Init(Local<Object> target) {
   Nan::SetMethod(obj, "stereoRectify", StereoRectify);
   Nan::SetMethod(obj, "computeCorrespondEpilines", ComputeCorrespondEpilines);
   Nan::SetMethod(obj, "reprojectImageTo3d", ReprojectImageTo3D);
+  Nan::SetMethod(obj, "findHomography", FindHomography);
 
   target->Set(Nan::New("calib3d").ToLocalChecked(), obj);
 }
@@ -556,6 +557,38 @@ NAN_METHOD(Calib3D::ReprojectImageTo3D) {
     Nan::ThrowError(err_msg);
     return;
   }
+}
+
+// cv::findHomography
+NAN_METHOD(Calib3D::FindHomography) {
+	Nan::EscapableHandleScope scope;
+
+	try {
+		// Get the arguments
+		std::vector<cv::Point2f> srcPoints = points2fFromArray(info[0]);
+		std::vector<cv::Point2f> dstPoints = points2fFromArray(info[1]);
+
+		int method = 0;
+		double ransacReprojThreshold = 3.0;
+
+		if (info.Length() > 2) {
+			method = info[2]->IntegerValue();
+		}
+
+		if (info.Length() > 3) {
+			ransacReprojThreshold = info[3]->NumberValue();
+		}
+		
+		cv::Mat h = cv::findHomography(srcPoints, dstPoints, method, ransacReprojThreshold);
+
+		Local<Object> transformMatrix = Matrix::CreateWrappedFromMat(h);
+		info.GetReturnValue().Set(transformMatrix);
+	}
+	catch (cv::Exception &e) {
+		const char *err_msg = e.what();
+		Nan::ThrowError(err_msg);
+		return;
+	}
 }
 
 #endif
