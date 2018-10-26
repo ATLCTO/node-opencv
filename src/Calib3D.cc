@@ -113,6 +113,7 @@ void Calib3D::Init(Local<Object> target) {
   Nan::SetMethod(obj, "computeCorrespondEpilines", ComputeCorrespondEpilines);
   Nan::SetMethod(obj, "reprojectImageTo3d", ReprojectImageTo3D);
   Nan::SetMethod(obj, "findHomography", FindHomography);
+  Nan::SetMethod(obj, "perspectiveTransform", PerspectiveTransform);
 
   target->Set(Nan::New("calib3d").ToLocalChecked(), obj);
 }
@@ -583,6 +584,37 @@ NAN_METHOD(Calib3D::FindHomography) {
 
 		Local<Object> transformMatrix = Matrix::CreateWrappedFromMat(h);
 		info.GetReturnValue().Set(transformMatrix);
+	}
+	catch (cv::Exception &e) {
+		const char *err_msg = e.what();
+		Nan::ThrowError(err_msg);
+		return;
+	}
+}
+
+
+// cv::perspectiveTransform
+NAN_METHOD(Calib3D::PerspectiveTransform) {
+	Nan::EscapableHandleScope scope;
+
+	try {
+		// Get the arguments
+		std::vector<cv::Point2f> srcPoints = points2fFromArray(info[0]);
+		Matrix *H = Nan::ObjectWrap::Unwrap<Matrix>(info[1]->ToObject());
+
+    std::vector<cv::Point2f> dstPoints;
+		cv::perspectiveTransform(srcPoints, dstPoints, H->mat);
+    Local<Array> pointsArray = Nan::New<Array>(dstPoints.size());
+    for(unsigned int i = 0; i < dstPoints.size(); i++)
+    {
+      Local<Object> point_data = Nan::New<Object>();
+      point_data->Set(Nan::New<String>("x").ToLocalChecked(), Nan::New<Number>(dstPoints[i].x));
+      point_data->Set(Nan::New<String>("y").ToLocalChecked(), Nan::New<Number>(dstPoints[i].y));
+      pointsArray->Set(Nan::New<Number>(i), point_data);
+    }
+
+    // Return the points
+    info.GetReturnValue().Set(pointsArray);
 	}
 	catch (cv::Exception &e) {
 		const char *err_msg = e.what();
